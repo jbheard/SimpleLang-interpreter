@@ -42,11 +42,12 @@ int main(int argc, char* argv[])
 		fp = stdin;
 	}
 
-	int where = 0, len; // memory location, length of input
+	int where = 0, roll_where = 0, len; // memory location, prev. memory location, length of input
 	
 	char *raw; // Buffer for unprocessed input
 	char *buf; // Buffer for processed input
 	char memory[BF_ARRAY_SIZE] = {0}; // The Brainfuck program space
+	char rollback[BF_ARRAY_SIZE] = {0}; // Copy of memory in case of error
 
 	if(argc == 1)
 	{
@@ -93,19 +94,13 @@ int main(int argc, char* argv[])
 				memset(memory, 0, BF_ARRAY_SIZE);
 				continue;
 			}
+			else if(strncmp(raw, "where", 5) == 0)
+				printf("Cell %d -> contains %c - %d\n", where, memory[where], (int)memory[where]);
 		}
 		
 		len = parse(raw, &buf); // Process raw input, get parse length
 		if(len < 0)
 			continue;
-
-		if(strncmp(raw, "debug", 5) == 0)
-		{
-			printf("Where: %d\n", where);
-			for(int i = 0; i < 8; i++)
-				printf("%d:%c | ", (int)memory[i], memory[i]);
-			printf("\n");
-		}
 		
 		// Excecute the Brainfuck code
 		for(int i = 0; i < len; i++)
@@ -142,20 +137,25 @@ int main(int argc, char* argv[])
 			}
 			
 			// Handle errors
-			if(where < 0 || where > BF_ARRAY_SIZE)
+			if(where < 0 || where >= BF_ARRAY_SIZE)
 			{
 				printf("Runtime error at operation %d; %c\n", i, buf[i]);
 				if(argc == 1)
 				{
-					printf("Resetting brainfuck...\n");
-					where = 0;
-					memset(memory, 0, BF_ARRAY_SIZE);
+					printf("Rolling back brainfuck memory...\n");
+					memcpy(&memory, rollback, BF_ARRAY_SIZE);
+					where = roll_where;
 				}
 				break;
 			}
 		} // End for
+		
 		printf("\n");
 		free(buf);
+		
+		// Save the current data, if something goes wrong next time we can roll back
+		roll_where = where;
+		memcpy(&rollback, memory, BF_ARRAY_SIZE);
 	} while( argc == 1 ); // End while	
 	
 	free(raw);

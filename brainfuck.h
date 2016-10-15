@@ -1,8 +1,8 @@
 #ifndef BRAINFUCK_H
 #define BRAINFUCK_H	
 
-#define BF_ARRAY_SIZE 65536 // 2^16 bytes usable data space
-#define NUM_BYTES	  1024  // Read 4096 bytes at a time
+#define BF_ARRAY_SIZE 32768 // 2^15 bytes usable data space
+#define NUM_BYTES	  1024  // Read 1024 bytes at a time
 
 /* Finds the length of a negative-terminated short array
  * @param arr The short array
