@@ -6,7 +6,7 @@ Brainfuck is an esoteric programming language in which there are only 8 operatio
   **<**   Decrements the data pointer  
   **>**   Increments the data pointer  
   **-**   Decrements the byte at the data pointer  
-  **+**   Increments the byte at the data pointer
+  **+**   Increments the byte at the data pointer  
   **[**   Begins a loop, if byte at data pointer is 0, skip to the command after end of loop  
   **]**   Jump to beginning of loop  
   **,**   Take a single byte of input  
