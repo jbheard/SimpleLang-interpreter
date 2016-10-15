@@ -64,6 +64,7 @@ int main(int argc, char* argv[])
 	SOCKET sock; // Socket for working with servers
 	int port;	 // Port number for working with servers
 	
+	char move = 0; // Number of cells to move on file/socket open
 	char *raw; // Buffer for unprocessed input
 	char *buf; // Buffer for processed input
 	char memory[BF_ARRAY_SIZE] = {0}; // The Brainfuck program space
@@ -162,7 +163,8 @@ int main(int argc, char* argv[])
 					}
 					else
 					{
-						bf_fp = fopen(&memory[where+1], "rb+");
+						move = memory[where];
+						bf_fp = fopen(&memory[where+move], "rb+");
 						if(bf_fp == NULL) // Failure :(
 							memory[where] = -1;
 						else 			  // Success :)
@@ -180,7 +182,11 @@ int main(int argc, char* argv[])
 					if(bf_fp == NULL)
 						where = -2;
 					else
+					{
 						memory[where] = (char)getc(bf_fp);
+						if(memory[where] == EOF) // return 0 at EOF
+							memory[where] = 0;
+					}
 					break;
 				case '%':
 					if(sock_open)
@@ -196,16 +202,18 @@ int main(int argc, char* argv[])
 					* First off, the memory layout when opening a port should be:
 					* 		[1 byte return value] [n byte URL/IP] [1 NULL byte] [2 byte port number]
 					*
-					* 1. The first line here uses port as a temporary variable to store the length
+					* 1. The first line just gets the location of our data, as per the bf++ spec
+					* 2. The second line here uses port as a temporary variable to store the length
 					* 		of the URL/IP. 
-					* 2. The second line uses this to access the memory where the port 
+					* 3. The third line uses this to access the memory where the port 
 					* 		number is. It is always in Big Endian format, so the first byte is 
 					*		multiplied by 256 and added to the second byte.
-					* 3. The third line opens the port and sets the return value.
+					* 4. The fourth line opens the port and sets the return value.
 					*/
-						port = strlen(&memory[where+1]);
-						port = memory[where+1+port]*0x100 + memory[where+2+port];
-						memory[where] = open_sock(&sock, &memory[where+1], port);
+						move = memory[where];
+						port = strlen(&memory[where+move]);
+						port = memory[where+move+port]*0x100 + memory[where+move+1+port];
+						memory[where] = open_sock(&sock, &memory[where+move], port);
 						sock_open = 1;
 					}
 					break;
