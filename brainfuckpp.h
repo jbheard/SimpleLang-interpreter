@@ -8,9 +8,22 @@
 #else
 	#include <sys/socket.h>
 	#include <arpa/inet.h> //inet_addr
+	#include <netdb.h> //gethostbyname
+	#include <netinet/in.h> //sockaddr_in
+	#include <unistd.h> //close
+	
+	#define INVALID_SOCKET 	-1
+	#define SOCKET_ERROR 	-1
 
-	#define INVALID_SOCKET -1
-	typedef SOCKET int;
+	/* NOTE: In winsock LP**** just defines a FAR pointer, and for some reason 
+	* 		Microsoft likes to capitalize things, so I have to do a bunch of 
+	* 		stuff here to make the code portable.
+	*/
+	typedef int SOCKET;
+	typedef struct sockaddr_in SOCKADDR_IN;
+	typedef struct hostent* LPHOSTENT;
+	typedef struct in_addr* LPIN_ADDR;
+	typedef struct sockaddr* LPSOCKADDR;
 #endif
 
 #define BF_ARRAY_SIZE 32768 // 2^15 bytes usable data space
