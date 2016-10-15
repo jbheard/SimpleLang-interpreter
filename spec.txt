@@ -1,0 +1,69 @@
+brainfuck++ Compiler/Language Specifications
+By Jason Rush (AkSnowman) (updated by Jacob Torrey)
+
+Syntax:
+Beyond the original brainfuck commands, the following new commands are introduced.
+
+#
+when no file is opened:
+Move X cells forward, read in filename until a null (0x00) byte is reached,
+open file for reading/writing. Pointer is then returned to original cell
+and original cell's value is replaced with 0x00 for success or 0xFF(-1) for
+failure. No other cells/values are modified.
+ex. [5][?][?][?][?]['t']['e']['s']['t']['.']['t']['x']['t'][0x00]
+when a file is opened:
+Closes opened file
+
+:
+Reads in 1 character/byte from File and advances File Pointer.
+If EOF is reached, 0x00 is returned.
+
+;
+Writes value of current cell to File and advances File Pointer.
+
+%
+When no network connection is opened:
+Move X cells forward, read in remote address (IP or domain) until a
+null (0x00) byte is reached, then reads in 2 byte port
+(ex port 10 = [0x00][0x0A]). A TCP connection is opened to requested
+domain at requested port. Pointer is returned to original cell and
+original cell's value is replaced with 0x00 for success or 0xFF(-1)
+for failure. No other cells/values are modified.
+when a network connection is opened:
+Closes network connection
+
+^
+Sends value of current cell via the open network connection/socket.
+
+!
+Reads in 1 character/byte from network connection/socket.
+If connection is closed by remote host, 0x00 is returned instead.
+
+# implies only 1 file may be opened at any given time
+: implies use of files with 0x00's will cause false EOF conditions
+; lack of any sort of erroring (read-only files and such)
+% implies only 1 network connection may be opened at any given time.
+TCP is assumed.
+^ implies use of 0x00's in transmissions will cause false EOT conditions
+! lack of any sort of erroring or non-blocking support
+presumably hangs or times out
+
+brainfuck++ is also backwards compatable with brainfuck as long as one has no
+brainfuck++ command characters in their brainfuck source
+(other options depend on brainfuck and brainfuck++ compiler/interpreter arguments)
+
+Compiler specific information:
+8-bit bytes
+1-byte cells
+cells wrap
+0xFF + 1 == 0x00
+and
+0x00 - 1 == 0xFF
+array is 30,000 cells in length
+loops on array "underflow/verflow" (moving left/down beyond 1st cell or up/right beyond last cell)
+pointer starts at first cell
+"read" commands (stdin, file, and network) take in newlines as recieved from the OS
+ie. may be just 10, just 13, or 13 10 (CRLF)
+0x00 shall be used for EOF's (and EOT)
+
+All compiler specific information/specifications may be modified by arguments passed to compiler
