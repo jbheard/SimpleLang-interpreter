@@ -39,4 +39,4 @@ The actual specification for the brainfuck++ language (along with how to open fi
 
 To build the standard brainfuck interpreter you can use **gcc brainfuck.c -o brainfuck -Werror -Wall**, this works on unix and Windows (Using MinGW). 
 
-To build the brainfuck++ interpreter use **gcc brainfuckpp.c -o brainfuck++ -Werror -Wall -lws2_32** on Windows platforms and **gcc brainfuckpp.c -o brainfuck++ -Werror -Wall ** on linux/unix platforms.
+To build the brainfuck++ interpreter use **gcc brainfuckpp.c -o brainfuck++ -Werror -Wall -lws2_32** on Windows platforms and **gcc brainfuckpp.c -o brainfuck++ -Werror -Wall** on linux/unix platforms.
