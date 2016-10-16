@@ -117,6 +117,34 @@ int main(int argc, char* argv[])
 			}
 			else if(strncmp(raw, "where", 5) == 0)
 				printf("Cell %d -> contains %c - %d\n", where, memory[where], (int)memory[where]);
+			else if( strncmp(raw, "help", 4) == 0)
+			{
+				printf("-------------------------------------------------------------------------------\n");
+				printf("                        Brainfuck++ Operations Guide\n");
+				printf("-------------------------------------------------------------------------------\n");
+				printf("  Op | Explanation\n");
+				printf("-------------------------------------------------------------------------------\n");
+				printf("   +   Increments the current cell.\n");
+				printf("   -   Decrements the current cell.\n");
+				printf("   <   Moves the data pointer left.\n");
+				printf("   >   Moves the data pointer right.\n");
+				printf("   ,   Reads one byte from stdin into the current cell.\n");
+				printf("   .   Writes the byte in the current cell to stdout.\n");
+				printf("   [   Loop if the current cell is non-zero, otherwise jump to the op after ']'\n");
+				printf("   ]   End of loop, jumps back to start.\n");
+				printf("   #   Opens a file, the file name starts n bytes away and ends at '\\0', where\n");
+				printf("       n is the value of the current cell. The result (0 if success, -1 if\n");
+				printf("       failure) is stored at current cell\n");
+				printf("   :   Read one byte from file into current cell.\n");
+				printf("   ;   Write one byte from current cell into file.\n");
+				printf("   %%   Open a socket. The URL/IP of the socket starts n bytes away and ends at\n");
+				printf("       '\\0', where n is the value of the current cell. This is directly\n");
+				printf("       followed by a 2 byte port number. The result (0 if success, -1 if \n");
+				printf("       failure) is stored at the current cell.\n");
+				printf("   ^   Writes one byte from current cell to socket.\n");
+				printf("   !   Reads one byte from socket to current cell.\n");
+				printf("\n");
+			}
 		}
 		
 		len = parse(raw, &buf); // Process raw input, get parse length
@@ -236,7 +264,6 @@ int main(int argc, char* argv[])
 					printf("Rolling back brainfuck memory...\n");
 					strncpy(memory, rollback, BF_ARRAY_SIZE);
 					where = roll_where;
-					memset(memory, 0, BF_ARRAY_SIZE);
 				}
 				break;
 			}
