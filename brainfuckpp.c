@@ -142,9 +142,14 @@ int main(int argc, char* argv[])
 				printf("       followed by a 2 byte port number. The result (0 if success, -1 if \n");
 				printf("       failure) is stored at the current cell.\n");
 				printf("   ^   Writes one byte from current cell to socket.\n");
-				printf("   !   Reads one byte from socket to current cell.\n");
-				printf("\n");
+				printf("   !   Reads one byte from socket to current cell.\n\n");
 			}
+			else if( strncmp(raw, "print", 5) == 0)
+			{
+				printf("%s\n", &memory[where]);
+				continue;
+			}
+
 		}
 		
 		len = parse(raw, &buf); // Process raw input, get parse length

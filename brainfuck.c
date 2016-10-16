@@ -22,7 +22,6 @@
 
 #include "brainfuck.h"
 
-
 int main(int argc, char* argv[])
 {
 	FILE * fp; // File pointer
@@ -95,7 +94,32 @@ int main(int argc, char* argv[])
 				continue;
 			}
 			else if(strncmp(raw, "where", 5) == 0)
+			{
 				printf("Cell %d -> contains %c - %d\n", where, memory[where], (int)memory[where]);
+				continue;
+			}
+			else if( strncmp(raw, "help", 4) == 0)
+			{
+				printf("-------------------------------------------------------------------------------\n");
+				printf("                        Brainfuck++ Operations Guide\n");
+				printf("-------------------------------------------------------------------------------\n");
+				printf("  Op | Explanation\n");
+				printf("-------------------------------------------------------------------------------\n");
+				printf("   +   Increments the current cell.\n");
+				printf("   -   Decrements the current cell.\n");
+				printf("   <   Moves the data pointer left.\n");
+				printf("   >   Moves the data pointer right.\n");
+				printf("   ,   Reads one byte from stdin into the current cell.\n");
+				printf("   .   Writes the byte in the current cell to stdout.\n");
+				printf("   [   Loop if the current cell is non-zero, otherwise jump to the op after ']'\n");
+				printf("   ]   End of loop, jumps back to start.\n\n");
+				continue;
+			}
+			else if( strncmp(raw, "print", 5) == 0)
+			{
+				printf("%s\n", &memory[where]);
+				continue;
+			}
 		}
 		
 		len = parse(raw, &buf); // Process raw input, get parse length
@@ -158,7 +182,6 @@ int main(int argc, char* argv[])
 		memcpy(&rollback, memory, BF_ARRAY_SIZE);
 	} while( argc == 1 ); // End while	
 	
-	free(raw);
-	
+	free(raw);	
 	return 0;
 }
