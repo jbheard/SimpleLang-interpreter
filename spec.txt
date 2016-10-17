@@ -26,9 +26,10 @@ When no network connection is opened:
 Move X cells forward, read in remote address (IP or domain) until a
 null (0x00) byte is reached, then reads in 2 byte port
 (ex port 10 = [0x00][0x0A]). A TCP connection is opened to requested
-domain at requested port. Pointer is returned to original cell and
-original cell's value is replaced with 0x00 for success or 0xFF(-1)
-for failure. No other cells/values are modified.
+domain at requested port. If no domain is specified, a server is opened
+on the requested port and waits to accept a connection. Pointer is returned 
+to original cell and original cell's value is replaced with 0x00 for 
+success or 0xFF(-1) for failure. No other cells/values are modified.
 when a network connection is opened:
 Closes network connection
 
