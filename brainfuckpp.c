@@ -61,7 +61,8 @@ int main(int argc, char* argv[])
 	char file_open = 0, sock_open = 0; // Whether we have sockets or files open
 	FILE* bf_fp = NULL; // Brainfuck file pointer
 	
-	SOCKET sock; // Socket for working with servers
+	SOCKET sock_c;  // Client socket
+	SOCKET sock_s = INVALID_SOCKET; // Server socket
 	int port;	 // Port number for working with servers
 	
 	char move = 0; // Number of cells to move on file/socket open
@@ -115,10 +116,12 @@ int main(int argc, char* argv[])
 				memset(memory, 0, BF_ARRAY_SIZE);
 				continue;
 			}
-			else if(strncmp(raw, "where", 5) == 0)
+			else if(strncmp(raw, "where", 5) == 0) 
+				// Print the data pointer position and value
 				printf("Cell %d -> contains %c - %d\n", where, memory[where], (int)memory[where]);
 			else if( strncmp(raw, "help", 4) == 0)
 			{
+				// Note: this is formatted for an 80-character wide console
 				printf("-------------------------------------------------------------------------------\n");
 				printf("                        Brainfuck++ Operations Guide\n");
 				printf("-------------------------------------------------------------------------------\n");
@@ -145,11 +148,10 @@ int main(int argc, char* argv[])
 				printf("   !   Reads one byte from socket to current cell.\n\n");
 			}
 			else if( strncmp(raw, "print", 5) == 0)
-			{
+			{ // Print the string at the current data pointer
 				printf("%s\n", &memory[where]);
 				continue;
 			}
-
 		}
 		
 		len = parse(raw, &buf); // Process raw input, get parse length
@@ -224,7 +226,8 @@ int main(int argc, char* argv[])
 				case '%':
 					if(sock_open)
 					{
-						close_sock(sock);
+						close_sock(sock_s);
+						close_sock(sock_c);
 						sock_open = 0;
 					}
 					else
@@ -232,8 +235,11 @@ int main(int argc, char* argv[])
 					/* I hate writing compicated code, because now I have to explain it  
 					* for future me and anyone who might see this.
 					* 
-					* First off, the memory layout when opening a port should be:
+					* First off, the memory layout when opening a client port should be:
 					* 		[1 byte return value] [n byte URL/IP] [1 NULL byte] [2 byte port number]
+					* Alternatively, 
+					* 		[1 byte return value] [1 NULL byte] [2 bytes port number]
+					* Opens a server port as well as a connection to the client port
 					*
 					* 1. The first line just gets the location of our data, as per the bf++ spec
 					* 2. The second line here uses port as a temporary variable to store the length
@@ -241,22 +247,27 @@ int main(int argc, char* argv[])
 					* 3. The third line uses this to access the memory where the port 
 					* 		number is. It is always in Big Endian format, so the first byte is 
 					*		multiplied by 256 and added to the second byte.
-					* 4. The fourth line opens the port and sets the return value.
+					* 4. The if/else checks whether an IP/URL was passed. If no host was selected, 
+					* 	 	we create a server and wait for a connection. Otherwise, we attempt to
+					*		connect to the given host on the given port.
 					*/
 						move = memory[where];
 						port = strlen(&memory[where+move]);
-						port = memory[where+move+port]*0x100 + memory[where+move+1+port];
-						memory[where] = open_sock(&sock, &memory[where+move], port);
+						port = memory[where+move+port+1]*0x100 + memory[where+move+port+2];
+						if(memory[where+move] == '\0')
+							memory[where] = open_server(&sock_s, &sock_c, port);
+						else
+							memory[where] = open_client(&sock_c, &memory[where+move], port);
 						sock_open = 1;
 					}
 					break;
 				case '^': // Send 1 byte through socket
 					if(sock_open)
-						send_sock(sock, memory[where]);
+						send_sock(sock_c, memory[where]);
 					break;
 				case '!': // Recv 1 byte through socket
 					if(sock_open)
-						memory[where] = recv_sock(sock);
+						memory[where] = recv_sock(sock_c);
 					break;
 			}
 			
@@ -286,8 +297,10 @@ int main(int argc, char* argv[])
 	if(file_open) 
 		fclose(bf_fp);
 	if(sock_open)
-		close_sock(sock);
-	
+	{
+		close_sock(sock_s);
+		close_sock(sock_c);
+	}
 	free(raw);
 	return 0;
 }

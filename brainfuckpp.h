@@ -5,6 +5,7 @@
 #ifdef __WIN32__
 	#include <windows.h>
 	#include <winsock.h>
+	#include <ws2tcpip.h>
 #else
 	#include <sys/socket.h>
 	#include <arpa/inet.h> //inet_addr
@@ -31,15 +32,16 @@
 
 
 /* Opens a socket and connects to a given host on a given port
- * NOTE: Winsock code is from http://johnnie.jerrata.com/winsocktutorial/ 
- *
+ * NOTE: Winsock code is from http://johnnie.jerrata.com/winsocktutorial/ and has 
+ * 		 been modified for portability
  * @param s The socket to open
  * @param hostname The URL or IP of the host to connect to
  * @param portno The port to use when we connect
  * @return 0 if everything went well, -1 otherwise (char)
  */
-char open_sock(SOCKET* s, char* hostname, int portno)
+char open_client(SOCKET* s, char* hostname, int portno)
 {
+	int ret;
 #ifdef __WIN32__
 	WORD sockVersion;
 	WSADATA wsaData;
@@ -84,7 +86,91 @@ char open_sock(SOCKET* s, char* hostname, int portno)
 	serverInfo.sin_addr = *((LPIN_ADDR)*hostEntry->h_addr_list);
 	serverInfo.sin_port = htons(portno);
 
-	if(connect(*s, (LPSOCKADDR)&serverInfo, sizeof(struct sockaddr)) == SOCKET_ERROR)
+	ret = connect(*s, (LPSOCKADDR)&serverInfo, sizeof(struct sockaddr));
+	if(ret == SOCKET_ERROR)
+	{
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
+
+	return 0;
+}
+
+/* Opens a socket as a server and waits for incoming connections. 
+ * Gets first incoming connection in a socket.
+ * NOTE: Winsock code is from http://johnnie.jerrata.com/winsocktutorial/ and has 
+ * 		 been modified for portability
+ * @param s The server socket to open
+ * @param c The client socket to open
+ * @param portno The port to use
+ * @return 0 if everything went well, -1 otherwise (char)
+ */
+char open_server(SOCKET* s, SOCKET* c, int portno)
+{
+#ifdef __WIN32__
+	WORD sockVersion;
+	WSADATA wsaData;
+	
+	sockVersion = MAKEWORD(1, 1);
+	
+	// Initialize Winsock
+	WSAStartup(sockVersion, &wsaData);
+#endif
+	int ret; // For storing return values
+	
+	*s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (*s == INVALID_SOCKET)
+	{
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
+	
+// Make socket non-blocking:
+/*#ifdef __WIN32__
+	u_long iMode = 1;
+	ret = ioctlsocket(m_socket, FIONBIO, &iMode);
+	if(ret != 0)
+	{
+		WSACleanup();
+		return -1;
+	}
+#else
+	ret = fcntl(*s, F_SETFL, O_NONBLOCK);
+	if(ret != 0) return -1;
+#endif*/
+
+	SOCKADDR_IN serverInfo;
+	serverInfo.sin_family = AF_INET;
+    serverInfo.sin_addr.s_addr = INADDR_ANY;
+    serverInfo.sin_port = htons( portno );
+	
+	ret = bind(*s, (LPSOCKADDR)&serverInfo, sizeof(struct sockaddr));
+	if(ret == SOCKET_ERROR)
+	{
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
+	
+	ret = listen(*s, 1); // Up to 5 connections
+	if(ret == SOCKET_ERROR)
+	{
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
+
+    struct sockaddr_storage their_addr;
+	socklen_t addr_size = sizeof their_addr;
+
+	*c = accept(*s, (struct sockaddr *)&their_addr, &addr_size);
+	if(*c == INVALID_SOCKET)
 	{
 #ifdef __WIN32__
 		WSACleanup();
@@ -97,12 +183,15 @@ char open_sock(SOCKET* s, char* hostname, int portno)
 
 void close_sock(SOCKET s)
 {
+	if(s != INVALID_SOCKET)
+	{
 #ifdef __WIN32__
-	closesocket(s);
-	WSACleanup();
+		closesocket(s);
+		WSACleanup();
 #else
-	close(s);
+		close(s);
 #endif
+	}
 }
 
 /* Sends a single byte from an open socket
