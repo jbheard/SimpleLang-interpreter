@@ -1,0 +1,41 @@
+[ reverse.bpp 
+
+The following prints "Enter filename: " to the output. 
+The program reads in a file name, reads all of the data 
+in the file into the buffer, then it writes the data back 
+into the file backwards. 
+]
+
+The following does all of its work in cells 0 through 3
+and clears all of the cells when it is done
+++++ ++++[>++++ ++++<-]>+++++.  Print E
+< +++++[>++++ ++++<-]>+.		Print n
+++++ ++.---- ---- ---- ---.		Print te
+++++ ++++ ++++ +.				Print r
+>++++[>++++ ++++<-]>.[-]<<		Print SP
+---- ---- ----.					Print f
++++.+++.---- ---.				Print ile
+++++ ++++ +.---- ---- ---- -.	Print na
++++++ ++++ +++.---- ----.		Print me
+<++++ ++[>---- ---<-]>-.		Print colon
+[-]++++[>++++ ++++<-]>.[-]<		Print SP
+
+Pointer should now be at 0 and memory should be clear
+
+Read input until LF
+[-]>+[++++ ++++ ++ > ,---- ---- --]
+<[<]>[-]+#						Go to 1 and Open file
++[-								If the file is open
+	>[>]>						Go to after file name
+	:[>:]						Read and store each character
+]#								Close the file
+
+Pointer should now be at n 
+	* memory from 1 to m contains file name 
+	* memory from m plus 1 to n minus 1 contains file data
+
+<[<]<[<]						Go to before file name
++#+[-							Only if file is open
+	>[>]>[>]					Reopen file and move to end of buffer data
+	<[;<]						Write data back into file backwards
+]#								Close file

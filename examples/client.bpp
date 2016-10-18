@@ -1,0 +1,29 @@
+[ This is a simple server written in bf++ ]
+
+++++ ++++[>++++ ++++<-]>+++++.  Print E
+< +++++[>++++ ++++<-]>+.		Print n
+++++ ++.---- ---- ---- ---.		Print te
+++++ ++++ ++++ +.				Print r
+>++++[>++++ ++++<-]>.[-]<<		Print SP
+
+----------.+++++++.++++.+.		Print host
+
+------.---- ---- ---- -.		Print na
++++++ ++++ +++.---- ----.		Print me
+<++++ ++[>---- ---<-]>-.		Print colon
+[-]++++[>++++ ++++<-]>.[-]<<	Print SP
+
+
+Pointer should now be at 0 and memory should be clear
+
+>+[++++ ++++ ++>, ---- ---- --]	Start reading at 1
+
+>++++ ++++ ++++ +++				Set portno to 8888 (34 184)
+[>++++ ++++ ++++ <-]> ++++
+<++++ ++++ ++++ ++++ ++++
+++++ ++++ ++++ ++ <<
+[<]>[-]+						Clear 1 then set 1 to 1
+
+%+[
+	,^----- ----- 				Read and send data until LF
+]%								End loop and close socket

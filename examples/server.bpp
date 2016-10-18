@@ -1,0 +1,12 @@
+[ This is a simple server written in bf++ ]
+
+
+>>++++ ++++ ++++ +++				Set portno to 8888 (34 184)
+[>++++ ++++ ++++ <-]> ++++
+<++++ ++++ ++++ ++++ ++++
+++++ ++++ ++++ ++ <<+
+
+
+%+[
+	!.----- -----				Read and print a byte until LF
+]%								End loop and close socket
