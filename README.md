@@ -17,7 +17,7 @@ Operation | Explanation
 Anything that is not one of the above 8 operations is ignored, and can be used to comment.
 
 # Brainfuck++ Interpreter 
-Brainfuck++ is an edition to the brainfuck language outlined by Jacob I. Torrey (https://esolangs.org/wiki/Brainfuck%2B%2B). The language caught my eye while I was browsing Esolang. I personally think that brainfuck is great and challenging as is, but I was still disapointed to see that nobody had written a proper implementation of brainfuck ++.  
+Brainfuck++ is an addition to the brainfuck language outlined by Jacob I. Torrey (https://esolangs.org/wiki/Brainfuck%2B%2B). The language caught my eye while I was browsing Esolang. I personally think that brainfuck is great and challenging as is, but I was still disappointed to see that nobody had written a proper implementation of brainfuck ++.  
 At least to my current knowledge, there are only a few interpreters out there for brainfuck++, and none of them actually obey the specifications outlined by the creator, all of which simply add many extra commands that the developer thought would be neat.  
 Even the creator of the specification does not seem to have completed anything more than a simple brainfuck interpreter (http://www.jitunleashed.com/bf/index.html).
 
