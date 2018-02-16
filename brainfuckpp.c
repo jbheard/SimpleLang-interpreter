@@ -1,306 +1,197 @@
-/** Interactive Brainfuck++ Interpreter
- * @author Jacob Heard
- * Date: October 15th, 2016 
- * 
- * Description: A command line brainfuck++ interpreter, runs brainfuck++ code from a file or from the command line.
- * Brainfuck is an esoteric programming language in which there are only 8 operations, these are as follows:
- * 		< 	Decrements the data pointer
- * 		> 	Increments the data pointer
- * 		- 	Decrements the byte at the data pointer
- * 		+ 	Increments the byte at the data pointer
- * 		[	Begins a loop, if byte at data pointer is 0, skip to the command after end of loop
- * 		] 	Jump to beginning of loop
- *		,	Take a single byte of input
- * 		. 	Print a the byte at the data pointer 
- * 
- * Brainfuck++ is an edition to the brainfuck language outlined by Jacob I. Torrey (https://esolangs.org/wiki/Brainfuck%2B%2B).
- * I stumbled across the language browsing through Esolang and it caught my eye. I personally think that brainfuck is great as
- * is, but I was still disapointed to see that nobody has written a proper implementation of brainfuck ++. At least to my 
- * current knowledge, there are only a few interpreters out there for this, and none of them actually obey the specifications,
- * all of which simply add many extra commands that the developer thought would be neat. Even the creator of the specification 
- * did not complete anything more than a simple brainfuck interpreter (http://www.jitunleashed.com/bf/index.html).
- * 
- * The added operations in the brainfuck++ language are:
- *		#	Open a file for reading/writing
- *		; 	write the character in the current cell to the file, overwriting what is in the file
- * 		: 	Read a character from the file
- *		% 	Opens a socket for reading/writing. A second call closes the socket.
- *		^ 	Sends the character in the current cell
- * 		!	Reads a character from socket into current cell
- *
- * As per brainfuck standard, anything that is not one of the above 14 operations is ignored, and can be used to comment 
- */
+#ifdef __WIN32__
+	#include <windows.h>
+	#include <winsock.h>
+	#include <ws2tcpip.h>
+#else
+	#include <sys/socket.h>
+	#include <arpa/inet.h> //inet_addr
+	#include <netdb.h> //gethostbyname
+	#include <netinet/in.h> //sockaddr_in
+	#include <unistd.h> //close
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+	/* Redefine *nix socket stuff so that Windows code works too */
+	typedef struct sockaddr_in  SOCKADDR_IN;
+	typedef struct hostent*     LPHOSTENT;
+	typedef struct in_addr*     LPIN_ADDR;
+	typedef struct sockaddr*    LPSOCKADDR;
+#endif
 
 #include "brainfuckpp.h"
 
+/* Opens a socket and connects to a given host on a given port
+ * NOTE: Winsock code is from http://johnnie.jerrata.com/winsocktutorial/ and has 
+ * 		 been modified for portability
+ * @param s The socket to open
+ * @param hostname The URL or IP of the host to connect to
+ * @param portno The port to use when we connect
+ * @return 0 if everything went well, -1 otherwise (char)
+ */
+char open_client(SOCKET* s, char* hostname, int portno) {
+	int ret;
+#ifdef __WIN32__
+	WORD sockVersion;
+	WSADATA wsaData;
+	
+	sockVersion = MAKEWORD(1, 1);
+	
+	// Initialize Winsock
+	WSAStartup(sockVersion, &wsaData);
+#endif
+	
+	// Store information about the server
+	LPHOSTENT hostEntry;
+	
+	// Specifying the server by its name;
+	if (!(hostEntry = gethostbyname(hostname)))
+	{
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
 
-int main(int argc, char* argv[])
-{
-	FILE * fp; // File pointer
-	if(argc > 1)
+	// Create the socket
+	*s = socket(AF_INET,			// Go over TCP/IP
+			   SOCK_STREAM,			// This is a stream-oriented socket
+			   IPPROTO_TCP);		// Use TCP rather than UDP
+
+	if (*s == INVALID_SOCKET)
 	{
-		if(strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)
-		{ // If the user is begging for help
-			printf("Usage: %s <filename>\n", argv[0]);
-			return 1;
-		}
-		else // Open the given file
-			fp = fopen(argv[1], "r");
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
 	}
-	else
+	
+	// Fill a SOCKADDR_IN struct with address information
+	SOCKADDR_IN serverInfo;
+	serverInfo.sin_family = AF_INET;
+
+	// Change to network-byte order and
+	// insert into port field
+	serverInfo.sin_addr = *((LPIN_ADDR)*hostEntry->h_addr_list);
+	serverInfo.sin_port = htons(portno);
+
+	ret = connect(*s, (LPSOCKADDR)&serverInfo, sizeof(struct sockaddr));
+	if(ret == SOCKET_ERROR)
 	{
-		// Otherwise, run in interactive mode, accept brainfuck from the command line
-		fp = stdin;
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
 	}
 
-	int where = 0, roll_where = 0, len; // memory location, prev. memory location, length of input
-	char file_open = 0, sock_open = 0; // Whether we have sockets or files open
-	FILE* bf_fp = NULL; // Brainfuck file pointer
-	
-	SOCKET sock_c;  // Client socket
-	SOCKET sock_s = INVALID_SOCKET; // Server socket
-	int port;	 // Port number for working with servers
-	
-	char move = 0; // Number of cells to move on file/socket open
-	char *raw; // Buffer for unprocessed input
-	char *buf; // Buffer for processed input
-	char memory[BF_ARRAY_SIZE] = {0}; // The Brainfuck program space
-	char rollback[BF_ARRAY_SIZE] = {0}; // Copy of memory in case of error
-
-	if(argc == 1) // Command line mode
-	{
-		raw = malloc(NUM_BYTES);
-	}
-	else
-	{
-		long filelen; // length of the file
-		
-		fp = fopen(argv[1], "rb");  // Open the file in binary mode
-		if(fp == NULL)
-		{
-			printf("Error: file not found.\n"); // Uh-oh spaghettios
-			return 1;
-		}
-		fseek(fp, 0, SEEK_END);          // Jump to the end of the file
-		filelen = ftell(fp);             // Get the current byte offset in the file
-		rewind(fp);                      // Jump back to the beginning of the file
-		
-		raw = malloc((filelen+1)); // Enough memory for file + '\0'
-		fread(raw, filelen, 1, fp); // Read in the entire file
-		fclose(fp); // Close the file;
-	}
-	
-	do
-	{
-		if(argc == 1) // Command line mode	
-		{
-			printf(": ");			   // Make it look pretty
-			memset(raw, 0, NUM_BYTES); // Zero the buffer
-			fgets(raw, NUM_BYTES, fp); // Read from input
-			
-			// If the user wants to quit
-			if(strncmp(raw, "quit", 4) == 0)
-			{
-				free(raw);
-				return 1;
-			}
-			// If the user wants to start over
-			else if(strncmp(raw, "reset", 5) == 0)
-			{
-				// Reset variables
-				where = 0;
-				memset(memory, 0, BF_ARRAY_SIZE);
-				continue;
-			}
-			else if(strncmp(raw, "where", 5) == 0) 
-				// Print the data pointer position and value
-				printf("Cell %d -> contains %c - %d\n", where, memory[where], (int)memory[where]);
-			else if( strncmp(raw, "help", 4) == 0)
-			{
-				// Note: this is formatted for an 80-character wide console
-				printf("-------------------------------------------------------------------------------\n");
-				printf("                        Brainfuck++ Operations Guide\n");
-				printf("-------------------------------------------------------------------------------\n");
-				printf("  Op | Explanation\n");
-				printf("-------------------------------------------------------------------------------\n");
-				printf("   +   Increments the current cell.\n");
-				printf("   -   Decrements the current cell.\n");
-				printf("   <   Moves the data pointer left.\n");
-				printf("   >   Moves the data pointer right.\n");
-				printf("   ,   Reads one byte from stdin into the current cell.\n");
-				printf("   .   Writes the byte in the current cell to stdout.\n");
-				printf("   [   Loop if the current cell is non-zero, otherwise jump to the op after ']'\n");
-				printf("   ]   End of loop, jumps back to start.\n");
-				printf("   #   Opens a file, the file name starts n bytes away and ends at '\\0', where\n");
-				printf("       n is the value of the current cell. The result (0 if success, -1 if\n");
-				printf("       failure) is stored at current cell\n");
-				printf("   :   Read one byte from file into current cell.\n");
-				printf("   ;   Write one byte from current cell into file.\n");
-				printf("   %%   Open a socket. The URL/IP of the socket starts n bytes away and ends at\n");
-				printf("       '\\0', where n is the value of the current cell. This is directly\n");
-				printf("       followed by a 2 byte port number. The result (0 if success, -1 if \n");
-				printf("       failure) is stored at the current cell.\n");
-				printf("   ^   Writes one byte from current cell to socket.\n");
-				printf("   !   Reads one byte from socket to current cell.\n\n");
-			}
-			else if( strncmp(raw, "print", 5) == 0)
-			{ // Print the string at the current data pointer
-				printf("%s\n", &memory[where]);
-				continue;
-			}
-		}
-		
-		len = parse(raw, &buf); // Process raw input, get parse length
-		if(len < 0)
-			continue;
-		
-		// Excecute the Brainfuck code
-		for(int i = 0; i < len; i++)
-		{
-			switch(buf[i])
-			{
-				case '+': // Increment byte
-					++ memory[where];
-					break;
-				case '-': // Decrement byte
-					-- memory[where];
-					break;
-				case '<': // Move pointer -
-					-- where;
-					break;
-				case '>': // Move pointer +
-					++ where;
-					break;
-				case '.': // Write byte
-					putchar(memory[where]);
-					break;
-				case ',': // Read byte
-					memory[where] = (char)getchar();
-					break;
-				case '[': // Start loop
-					if(memory[where] == 0)
-						i += (int)*((short*)&buf[i+1])-1;
-					else
-						i += sizeof(short);
-					break;
-				case ']': // End loop
-					i += (int)*((short*)&buf[i+1])-1;
-					break;
-				case '#': // Open file
-					if(file_open && bf_fp != NULL)
-					{
-						fclose(bf_fp);
-						file_open = 0;
-					}
-					else
-					{
-						move = memory[where];
-						bf_fp = fopen(&memory[where+move], "rb+");
-						if(bf_fp == NULL) // Failure :(
-							memory[where] = -1;
-						else 			  // Success :)
-							memory[where] = 0;
-						file_open = 1; // File is now open
-					}
-					break;
-				case ';': // Write byte to file
-					if(bf_fp == NULL)
-						where = -2;
-					else
-						putc(memory[where], bf_fp);
-					break;
-				case ':': // Read byte from file
-					if(bf_fp == NULL)
-						where = -2;
-					else
-					{
-						memory[where] = (char)getc(bf_fp);
-						if(memory[where] == EOF) // return 0 at EOF
-							memory[where] = 0;
-					}
-					break;
-				case '%':
-					if(sock_open)
-					{
-						close_sock(sock_s);
-						close_sock(sock_c);
-						sock_open = 0;
-					}
-					else
-					{
-					/* I hate writing compicated code, because now I have to explain it  
-					* for future me and anyone who might see this.
-					* 
-					* First off, the memory layout when opening a client port should be:
-					* 		[1 byte return value] [n byte URL/IP] [1 NULL byte] [2 byte port number]
-					* Alternatively, 
-					* 		[1 byte return value] [1 NULL byte] [2 bytes port number]
-					* Opens a server port as well as a connection to the client port
-					*
-					* 1. The first line just gets the location of our data, as per the bf++ spec
-					* 2. The second line here uses port as a temporary variable to store the length
-					* 		of the URL/IP. 
-					* 3. The third line uses this to access the memory where the port 
-					* 		number is. It is always in Big Endian format, so the first byte is 
-					*		multiplied by 256 and added to the second byte.
-					* 4. The if/else checks whether an IP/URL was passed. If no host was selected, 
-					* 	 	we create a server and wait for a connection. Otherwise, we attempt to
-					*		connect to the given host on the given port.
-					*/
-						move = memory[where];
-						port = strlen(&memory[where+move]);
-						port = memory[where+move+port+1]*0x100 + memory[where+move+port+2];
-						if(memory[where+move] == '\0')
-							memory[where] = open_server(&sock_s, &sock_c, port);
-						else
-							memory[where] = open_client(&sock_c, &memory[where+move], port);
-						sock_open = 1;
-					}
-					break;
-				case '^': // Send 1 byte through socket
-					if(sock_open)
-						send_sock(sock_c, memory[where]);
-					break;
-				case '!': // Recv 1 byte through socket
-					if(sock_open)
-						memory[where] = recv_sock(sock_c);
-					break;
-			}
-			
-			// Handle errors
-			if(where < 0 || where >= BF_ARRAY_SIZE)
-			{
-				printf("Runtime error at operation %d; %c : %s\n", i, buf[i], get_error(where));
-				if(argc == 1)
-				{
-					printf("Rolling back brainfuck memory...\n");
-					strncpy(memory, rollback, BF_ARRAY_SIZE);
-					where = roll_where;
-				}
-				break;
-			}
-		} // End for
-		
-		printf("\n"); // Makes output look prettier
-		free(buf); // Free this so we can use it again
-		
-		// Save the current data, if something goes wrong next time we can roll back
-		roll_where = where;
-		strncpy(rollback, memory, BF_ARRAY_SIZE);
-	} while( argc == 1 ); // End while
-	
-	// Clean up after the user
-	if(file_open) 
-		fclose(bf_fp);
-	if(sock_open)
-	{
-		close_sock(sock_s);
-		close_sock(sock_c);
-	}
-	free(raw);
 	return 0;
 }
+
+/* Opens a socket as a server and waits for incoming connections. 
+ * Gets first incoming connection in a socket.
+ * NOTE: Winsock code is from http://johnnie.jerrata.com/winsocktutorial/ and has 
+ * 		 been modified for portability
+ * @param s The server socket to open
+ * @param c The client socket to open
+ * @param portno The port to use
+ * @return 0 if everything went well, -1 otherwise (char)
+ */
+char open_server(SOCKET* s, SOCKET* c, int portno) {
+#ifdef __WIN32__
+	WORD sockVersion;
+	WSADATA wsaData;
+	
+	sockVersion = MAKEWORD(1, 1);
+	
+	// Initialize Winsock
+	WSAStartup(sockVersion, &wsaData);
+#endif
+	int ret; // For storing return values
+	
+	*s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (*s == INVALID_SOCKET) {
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
+	
+// Make socket non-blocking:
+// This doesn't seem to work. At least not as I expected
+/*#ifdef __WIN32__
+	u_long iMode = 1;
+	ret = ioctlsocket(m_socket, FIONBIO, &iMode);
+	if(ret != 0)
+	{
+		WSACleanup();
+		return -1;
+	}
+#else
+	ret = fcntl(*s, F_SETFL, O_NONBLOCK);
+	if(ret != 0) return -1;
+#endif*/
+
+	SOCKADDR_IN serverInfo;
+	serverInfo.sin_family = AF_INET;
+    serverInfo.sin_addr.s_addr = INADDR_ANY;
+    serverInfo.sin_port = htons( portno );
+	
+	ret = bind(*s, (LPSOCKADDR)&serverInfo, sizeof(struct sockaddr));
+	if(ret == SOCKET_ERROR) {
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
+	
+	ret = listen(*s, 1); // Up to 5 connections
+	if(ret == SOCKET_ERROR) {
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
+
+    struct sockaddr_storage their_addr;
+	socklen_t addr_size = sizeof their_addr;
+
+	*c = accept(*s, (struct sockaddr *)&their_addr, &addr_size);
+	if(*c == INVALID_SOCKET) {
+#ifdef __WIN32__
+		WSACleanup();
+#endif
+		return -1;
+	}
+	
+	return 0;
+}
+
+/* Closes an open socket
+ * @param s The socket to close
+ */
+void close_sock(SOCKET s) {
+	if(s != INVALID_SOCKET) {
+#ifdef __WIN32__
+		closesocket(s);
+		WSACleanup();
+#else
+		close(s);
+#endif
+	}
+}
+
+/* Sends a single byte from an open socket
+ * @param s The socket to write to 
+ * @param byte The data to send
+ */
+void send_sock(SOCKET s, char byte) {
+	send(s, &byte, 1, 0);
+}
+
+/* Recieves and returns a single byte from an open socket
+ * @param s The socket to read from
+ * @return The byte recieved from the socket (char)
+ */
+char recv_sock(SOCKET s) {
+	char byte;
+	recv(s, &byte, 1, 0);
+	return byte;
+}
+

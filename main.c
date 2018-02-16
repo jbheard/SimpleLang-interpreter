@@ -1,8 +1,8 @@
-/** Interactive Brainfuck Interpreter
+/** Interactive Brainfuck++ Interpreter
  * @author Jacob Heard
- * Date: October 11th, 2016 
+ * Last Updated: February 15th, 2018
  * 
- * Description: A command line Brainfuck interpreter, runs brainfuck code from a file or from the command line.
+ * Description: A command line brainfuck++ interpreter, runs brainfuck++ code from a file or from the command line.
  * Brainfuck is an esoteric programming language in which there are only 8 operations, these are as follows:
  * 		< 	Decrements the data pointer
  * 		> 	Increments the data pointer
@@ -11,9 +11,20 @@
  * 		[	Begins a loop, if byte at data pointer is 0, skip to the command after end of loop
  * 		] 	Jump to beginning of loop
  *		,	Take a single byte of input
- * 		. 	Print a the byte at the data pointer 
- *  
- * Anything that is not one of the above 8 operations is ignored, and can be used to comment 
+ * 		. 	Print a the byte at the data pointer
+ * 
+ * Brainfuck++ is an edition to the brainfuck language outlined by Jacob I. Torrey (https://esolangs.org/wiki/Brainfuck%2B%2B).
+ * It uses the same commands as above, with 6 added operations.
+ *
+ * The added operations in the brainfuck++ language are:
+ *		#	Open a file for reading/writing
+ *		; 	write the character in the current cell to the file, overwriting what is in the file
+ * 		: 	Read a character from the open file
+ *		% 	Opens a TCP socket for reading/writing. A second call closes the socket.
+ *		^ 	Sends the character in the current cell through socket
+ * 		!	Reads a character from socket into current cell
+ *
+ * As per brainfuck standard, anything that is not one of the above 14 operations is ignored, and can be used to comment
  */
 
 #include <stdio.h>
@@ -21,18 +32,25 @@
 #include <stdlib.h>
 
 #include "brainfuck.h"
+#include "brainfuckpp.h"
 
 int main(int argc, char* argv[]) {
 	FILE * fp; // File pointer
+	int console = 0;
 	if(argc > 1) {
 		if(strcmp(argv[1], "--help") == 0) { // If the user is begging for help
 			printf("Usage: %s <filename>\n", argv[0]);
+			printf("  Use %s --bf++ to operate in brainfuck++ mode.\n", argv[0]);
 			return 1;
-		} else // Open the given file
-			fp = fopen(argv[1], "r");
+		} else if(strcmp(argv[1], "--bf++") == 0 || strcmp(argv[1], "--brainfuck++") == 0) {
+			bfpp = 1; // Set brainfuck++ flag
+			console = 1;
+			fp = stdin;
+		}
 	} else {
 		// Otherwise, run in interactive mode, accept brainfuck from the command line
 		fp = stdin;
+		console = 1;
 	}
 
 	int roll_where = 0, len; // prev. memory location, length of input
@@ -41,8 +59,12 @@ int main(int argc, char* argv[]) {
 	char *buf; // Buffer for processed input
 	char rollback[BF_ARRAY_SIZE] = {0}; // Copy of memory in case of error
 
-	if(argc == 1) {
+	if(console) {
 		raw = malloc(BUF_SIZE);
+		if(raw == NULL) {
+			fprintf(stderr, "Error allocating memory\n");
+			return 1;
+		}
 	} else {
 		long filelen;
 
@@ -68,7 +90,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	do {
-		if(argc == 1) { // Command line mode
+		if(console) { // Command line mode
 			printf(": ");
 			memset(raw, 0, BUF_SIZE); // Zero the buffer
 			fgets(raw, BUF_SIZE, fp); // Read from input
@@ -90,7 +112,7 @@ int main(int argc, char* argv[]) {
 		buf = NULL;
 		len = parse(raw, &buf);
 		if(len < 0) {
-			show_err(len);
+			printf("Error: %s\n", get_error(len));
 			if(buf != NULL)
 				free(buf);
 			continue;
@@ -101,9 +123,10 @@ int main(int argc, char* argv[]) {
 			i += do_op(buf[i], &buf[i+1]);
 
 			// Handle errors
-			if(where < 0 || where >= BF_ARRAY_SIZE) {
+			if(where < 0) {
 				printf("Runtime error at operation %d; %c\n", i-1, buf[i]);
-				if(argc == 1) {
+				printf("  : %s\n", get_error(where));
+				if(console) { // Revert memory if in console mode
 					printf("Rolling back brainfuck memory...\n");
 					memcpy(&memory, rollback, BF_ARRAY_SIZE);
 					where = roll_where;
@@ -118,8 +141,13 @@ int main(int argc, char* argv[]) {
 		// Save the current data, if something goes wrong next time we can roll back
 		roll_where = where;
 		memcpy(&rollback, memory, BF_ARRAY_SIZE);
-	} while( argc == 1 ); // End while	
+	} while( console ); // End while	
 
+	// Clean up loose ends if in bf++ mode
+	if(bfpp) {
+		cleanup();
+	}
+	
 	free(raw);
 	return 0;
 }

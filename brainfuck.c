@@ -3,26 +3,66 @@
 #include <stdlib.h>
 
 #include "brainfuck.h"
+#include "brainfuckpp.h"
 
+/*** EXTERNAL VARIABLES ***/
+// Brainfuck++ control variable (brainfuck mode vs brainfuck++)
+int bfpp = 0;
 // Position in array
 int where = 0;
 // Main memory array
 char memory[BF_ARRAY_SIZE] = {0};
+/**************************/
 
-/* Prints the error associated with the given error number
- * @param errno The ID of the error to print
+/*** INTERNAL VARIABLES ***/
+// File and socket control variables
+static char file_open = 0, sock_open = 0;
+// Internal file pointer for brainfuck
+static FILE* bf_fp = NULL;
+// Client socket
+static SOCKET sock_c;
+// Server socket
+static SOCKET sock_s = INVALID_SOCKET;
+// Port number for working with servers
+static int port;
+/**************************/
+
+/* Meant for basic cleanup upon exiting application
+ * Closes file pointer and sockets.
  */
-void show_err(int err) {
+void cleanup() {
+	if(file_open) {
+		fclose(bf_fp);
+		file_open = 0;
+	}
+	if(sock_open) {
+		close_sock(sock_s);
+		sock_s = INVALID_SOCKET;
+		close_sock(sock_c);
+		sock_open = 0;
+	}
+}
+
+/* Gets an error message corresponding to an error code
+ * @param err The error code
+ * @return The error message corresponding to the error code (const char*)
+ */
+const char* get_error(int err) {
 	switch(err) {
+		case INDEX_OOB:
+			return "Pointer index out of bounds.";
+		case FILE_ERR:
+			return "File not open for reading.";
+		case BF_ARRAY_SIZE:
+			return "Maximum buffer size surpassed.";
 		case BAD_BRACKETS:
-			printf("Error: Bad bracket notation\n");
-			break;
+			return "Bad bracket notation";
 		case LOOP_TOO_DEEP:
-			printf("Error: Maximum loop depth exceeded\n");
-			break;
+			return "Maximum loop depth exceeded";
+		case MEMORY_ERR:
+			return "Allocating memory";
 		default:
-			printf("Error (#%d) unimplemented\n", errno);
-			break;
+			return "Unimplemented error";
 	}
 }
 
@@ -54,6 +94,26 @@ switch(help_id) {
 		printf("   .   Writes the byte in the current cell to stdout.\n");
 		printf("   [   Loop if the current cell is non-zero, otherwise jump to the op after ']'\n");
 		printf("   ]   End of loop, jumps back to start.\n\n");
+		printf("Use \"help bf++\" to see brainfuck++ specific operations\n\n");
+		break;
+	case BFPP_HELP:
+		printf("-------------------------------------------------------------------------------\n");
+		printf("                        Brainfuck++ Operations Guide\n");
+		printf("-------------------------------------------------------------------------------\n");
+		printf("  Op | Explanation\n");
+		printf("-------------------------------------------------------------------------------\n");
+		printf("   #   Opens a file, the file name starts n bytes away and ends at '\\0', where\n");
+		printf("       n is the value of the current cell. The result (0 if success, -1 if\n");
+		printf("       failure) is stored at current cell\n");
+		printf("   :   Read one byte from file into current cell.\n");
+		printf("   ;   Write one byte from current cell into file.\n");
+		printf("   %%   Open a socket. The URL/IP of the socket starts n bytes away and ends at\n");
+		printf("       '\\0', where n is the value of the current cell. This is directly\n");
+		printf("       followed by a 2 byte port number. The result (0 if success, -1 if \n");
+		printf("       failure) is stored at the current cell.\n");
+		printf("   ^   Writes one byte from current cell to socket.\n");
+		printf("   !   Reads one byte from socket to current cell.\n\n");
+		printf("Use \"help bf\" to see general brainfuck operations\n\n");
 		break;
 	case PRINT_HELP:
 		printf("print - Prints the text at pointer location, stops at a \n");
@@ -141,13 +201,24 @@ int parse(char *bf, char **arr) {
 			case '[': case ']':
 				cnt += 1 + sizeof(short); // Loop ops require a memory address
 				break;
+			default:
+			// handle any brainfuck++ code, but only in bf++ mode
+				if(bfpp) {
+					switch(bf[i]) {
+						case '#': case '^': case '!':
+						case ';': case ':': case '%':
+							cnt += 1;
+							break;
+					}
+				}
+				break;
 		}
 	}
 	// Check if an array was provided
 	if(*arr == NULL) {
 		*arr = malloc(cnt); // malloc for formatted code
 		if(*arr == NULL) {
-			return -1;
+			return MEMORY_ERR;
 		}
 		// Zero the array
 		memset(*arr, 0, cnt);
@@ -162,7 +233,7 @@ int parse(char *bf, char **arr) {
 
 	for(int i = 0; i < MAX_LOOPS; i++)
 		loopstack[i] = -1;
-	
+
 	for(int i = 0; i < strlen(bf); i++) {
 		switch(bf[i]) {
 			case '<': case '>': case '+':
@@ -191,60 +262,168 @@ int parse(char *bf, char **arr) {
 				cnt += 1 + sizeof(short);
 				*((short*)&ptr[tmp+1]) = cnt-tmp;
 				break;
+			default:
+			// handle any brainfuck++ code, but only in bf++ mode
+				if(bfpp) {
+					switch(bf[i]) {
+						case '#': case '^': case '!':
+						case ';': case ':': case '%':
+							ptr[cnt] = bf[i];
+							cnt += 1;
+							break;
+					}
+				}
+				break;
 		} // End switch
 	} // End for
 
 	if(shortlen(loopstack) > 0)
 		return BAD_BRACKETS;
-	
+
 	return cnt;
 }
 
-/* Perform a single brainfuck operation.
+/* Perform a single brainfuck operation. 
+ * Passes any brainfuck++ to do_op_bfpp().
  * @param op The operation
  * @return The offset to apply to the code pointer
  */
 int do_op(char op, char *next) {
 	int offset = 0;
 	switch(op) {
-		case '+':
+		case '+': // Increment cell at pointer
 			++ memory[where];
 			break;
-		case '-':
+		case '-': // Decrement cell at pointer
 			-- memory[where];
 			break;
-		case '<':
+		case '<': // Move pointer left
 			where --;
 			break;
-		case '>':
+		case '>': // Move pointer right
 			where ++;
 			break;
-		case '.':
+		case '.': // Print character
 			printf("%c", memory[where]);
 			break;
-		case ',':
+		case ',': // Get character
 			memory[where] = (char)getchar();
 			break;
-		case '[':
-			if(memory[where] == 0)
+		case '[': // Begin loop
+			if(memory[where] == 0) {
 				offset = (int)*((short*)next)-1;
-			else
+			} else {
 				offset = sizeof(short);
+			}
 			break;
-		case ']':
+		case ']': // End loop
 			offset = (int)*((short*)next)-1;
 			break;
+		default:
+			// Perform any brainfuck++ operations if in bf++ mode
+			if(bfpp) do_op_bfpp(op);
+			break;
+	}
+	if(where < 0 || where >= BF_ARRAY_SIZE) {
+		where = INDEX_OOB;
 	}
 	return offset;
 }
 
-/*
- *
+/* Perform a single brainfuck++ operation.
+ * @param op The operation
+ */
+void do_op_bfpp(char op) {
+	int move;
+	switch(op) {
+		case '#': // Open file
+			if(file_open && bf_fp != NULL) {
+				fclose(bf_fp);
+				bf_fp = NULL;
+				file_open = 0;
+			} else {
+				move = memory[where];
+				bf_fp = fopen(&memory[where+move], "rb+");
+				if(bf_fp == NULL) { // Failure :(
+					memory[where] = 0xff;
+				} else { 			  // Success :)
+					memory[where] = 0;
+					file_open = 1; // File is now open
+				}
+			}
+			break;
+		case ';': // Write byte to file
+			if(bf_fp == NULL) {
+				where = FILE_ERR;
+			} else {
+				putc(memory[where], bf_fp);
+			}
+			break;
+		case ':': // Read byte from file
+			if(bf_fp == NULL) {
+				where = FILE_ERR;
+			} else {
+				memory[where] = (char)getc(bf_fp);
+				if(memory[where] == EOF) // return 0 at EOF
+					memory[where] = 0;
+			}
+			break;
+		case '%':
+			if(sock_open) {
+				close_sock(sock_s);
+				close_sock(sock_c);
+				sock_open = 0;
+			} else {
+		   /*
+			* The memory layout when opening a client port should be:
+			* 		[1 byte return value] [n byte URL/IP] [1 NULL byte] [2 byte port number]
+			* Alternatively, 
+			* 		[1 byte return value] [1 NULL byte] [2 bytes port number]
+			* Opens a server port as well as a connection to the client port
+			*
+			* 1. The first line just gets the location of our data, as per the bf++ spec
+			* 2. The second line here uses port as a temporary variable to store the length
+			* 		of the URL/IP. 
+			* 3. The third line uses this to access the memory where the port 
+			* 		number is. It is always in Big Endian format, so the first byte is 
+			*		multiplied by 256 and added to the second byte.
+			* 4. The if/else checks whether an IP/URL was passed. If no host was selected, 
+			* 	 	we create a server and wait for a connection. Otherwise, we attempt to
+			*		connect to the given host on the given port.
+			*/
+				move = memory[where];
+				port = strlen(&memory[where+move]);
+				port = memory[where+move+port+1]*0x100 + memory[where+move+port+2];
+				if(memory[where+move] == '\0') {
+					memory[where] = open_server(&sock_s, &sock_c, port);
+				} else {
+					memory[where] = open_client(&sock_c, &memory[where+move], port);
+				}
+				sock_open = 1; // Set socket control variable
+			}
+			break;
+		case '^': // Send 1 byte through socket
+			if(sock_open) {
+				send_sock(sock_c, memory[where]);
+			}
+			break;
+		case '!': // Recv 1 byte through socket
+			if(sock_open) {
+				memory[where] = recv_sock(sock_c);
+			}
+			break;
+	}
+}
+
+/* Parses a command line request and either calls a method or allow 
+ * the request to run as code
+ * @param req The request to parse
+ * @return The result of the request (QUIT, RESET, CODE, or 0)
  */
 int parse_request(char *req) {
 	char *tmp;
 	int a;
-	
+
 	// If the user wants to quit
 	if(strncmp(req, "quit", 4) == 0) {
 		return QUIT;
@@ -257,7 +436,7 @@ int parse_request(char *req) {
 
 	} else if(strncmp(req, "where", 5) == 0) {
 		char val = memory[where];
-		printf("Cell %d -> contains '%c' | %d | 0x%x\n", where, val, (int)val, (int)val);
+		printf("Cell %d -> contains '%c' | %d | 0x%x\n", where, val, (unsigned int)val, (unsigned int)val);
 		return 0;
 
 	} else if( strncmp(req, "help", 4) == 0) {
@@ -270,9 +449,13 @@ int parse_request(char *req) {
 			show_help(PRINT_HELP);
 		} else if(strstr(req, "disp") != NULL) {
 			show_help(DISP_HELP);
-		} else if(strstr(req, "brainfuck") != NULL) {
+		} else if(strstr(req, "brainfuck++") != NULL) {
 			show_help(BRAINFUCK_HELP);
+		} else if(strstr(req, "bf++") != NULL) {
+			show_help(BFPP_HELP);
 		} else if(strstr(req, "bf") != NULL) {
+			show_help(BRAINFUCK_HELP);
+		} else if(strstr(req, "brainfuck") != NULL) {
 			show_help(BRAINFUCK_HELP);
 		} else {
 			show_help(HELP_HELP);
