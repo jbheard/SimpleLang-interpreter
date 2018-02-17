@@ -17,9 +17,8 @@ Operation | Explanation
 Anything that is not one of the above 8 operations is ignored, and can be used to comment.
 
 # Brainfuck++ Interpreter 
-Brainfuck++ is an addition to the brainfuck language outlined by Jacob I. Torrey (https://esolangs.org/wiki/Brainfuck%2B%2B). The language caught my eye while I was browsing Esolang. I personally think that brainfuck is great and challenging as is, but I was still disappointed to see that nobody had written a proper implementation of brainfuck ++.  
-At least to my current knowledge, there are only a few interpreters out there for brainfuck++, and none of them actually obey the specifications outlined by the creator, all of which simply add many extra commands that the developer thought would be neat.  
-Even the creator of the specification does not seem to have completed anything more than a simple brainfuck interpreter (http://www.jitunleashed.com/bf/index.html).
+Brainfuck++ is an addition to the brainfuck language outlined by Jacob I. Torrey (https://esolangs.org/wiki/Brainfuck%2B%2B). The language caught my eye while I was browsing Esolang. I personally think that brainfuck is great as is, but I was still disappointed to see that nobody had written a proper implementation of brainfuck ++, even now, years later.
+
 
 The added operations in the brainfuck++ language are:
 
@@ -33,10 +32,9 @@ Operation | Explanation
 ! |	Reads a character from socket into current cell
 
 The comment syntax does not change. Any brainfuck program can be run using brainfuck++, so long as none of the comments contain any of the new operations.  
-The actual specification for the brainfuck++ language (along with how to open files and sockets) can be found in spec.txt
+The actual specification for the brainfuck++ language (includes how to open files and sockets in more depth) can be found in spec.txt
 
 # Building
 
-To build the standard brainfuck interpreter you can use **gcc brainfuck.c -o brainfuck -Werror -Wall**, this works on unix and Windows (Using MinGW). 
+To build the interpreter use **gcc main.c brainfuck.c brainfuckpp.c -o brainfuck -Werror -Wall -lws2_32** on Windows platforms (using MinGW) and **gcc main.c brainfuck.c brainfuckpp.c -o brainfuck -Werror -Wall** on linux/unix platforms.
 
-To build the brainfuck++ interpreter use **gcc brainfuckpp.c -o brainfuck++ -Werror -Wall -lws2_32** on Windows platforms and **gcc brainfuckpp.c -o brainfuck++ -Werror -Wall** on linux/unix platforms.
