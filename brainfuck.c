@@ -422,7 +422,6 @@ void do_op_bfpp(char op) {
  */
 int parse_request(char *req) {
 	char *tmp;
-	int a;
 
 	// If the user wants to quit
 	if(strncmp(req, "quit", 4) == 0) {
@@ -467,7 +466,7 @@ int parse_request(char *req) {
 		int a = where;
 		if(strlen(req) > 6) {
 			a = strtol(req+6, &tmp, 10);
-			if(*tmp != '\0' && *tmp != ' ' && *tmp != '\n' & *tmp != '\r') {
+			if(*tmp != '\0' && *tmp != ' ' && *tmp != '\n' && *tmp != '\r') {
 				printf("Error parsing request at character '%c'\n", *tmp);
 				return 0;
 			} else if(a < 0 || a >= BF_ARRAY_SIZE) {
@@ -498,7 +497,7 @@ void disp(char *req) {
 	tmp = strtok(req, " "); // Ignore the first thingy
 	tmp = strtok(NULL, " ");
 	if(tmp == NULL) {
-		printf("%hhx\n", memory[where]);
+		printf("%x\n", (unsigned int)memory[where]);
 		return;
 	}
 
@@ -536,11 +535,150 @@ void disp(char *req) {
 		a = 1;
 	}
 	
+	// Build the format string
 	sprintf(pstr, "%%%c  ", format);
 	for(int i = 0; i < a; i++) {
-		printf(pstr, (unsigned char) memory[pos+i]);
+		// Display the data, 5 bytes per line
+		printf(pstr, (unsigned int) memory[pos+i]);
 		if(i % 5 == 4) printf("\n");
 	}
 	printf("\n");
 }
 
+/*
+ *
+ */
+void do_file(char *fname) {
+	FILE *fp;
+	char *raw;
+	int bytesread;
+	long filelen;
+
+	// This one should probably never happen, but just in case
+	if(fname == NULL) {
+		fprintf(stderr, "Error opening file: could not resolve filename.\n");
+		exit(1);
+	}
+
+	// Open the file for reading, check that it is, in fact, open
+	fp = fopen(fname, "rb");
+	if(fp == NULL) {
+		fprintf(stderr, "Error: file could not be opened.\n");
+		exit(1);
+	}
+
+	// Get the length of the file
+	fseek(fp, 0, SEEK_END);          // Seek end of file
+	filelen = ftell(fp);             // Get position (of end)
+	rewind(fp);                      // Go back to start of file
+
+	// Allocate enough memory for file contents + \0
+	raw = malloc((filelen+1));
+	if(raw == NULL) {
+		fprintf(stderr, "Error allocating memory.\n");
+		fclose(fp);
+		exit(1);
+	}
+
+	// Read in the entire file
+	bytesread = fread(raw, 1, filelen, fp);
+	fclose(fp);
+	
+	// Set null terminator just in case
+	*(raw+filelen) = 0;
+
+	// If we read less than the number of bytes in the file, something is wrong
+	if(bytesread < filelen) {
+		fprintf(stderr, "Error reading file contents.\n");
+		free(raw);
+		exit(1);
+	}
+
+	// Run the code
+	run_code(raw);
+	// Free the memory
+	free(raw);
+}
+
+/*
+ *
+ */
+void do_console() {
+	int res;
+	char *raw; // buffer for raw code input
+	// For rolling memory to previous version on an error
+	int roll_where = 0;
+	char rollback[BF_ARRAY_SIZE] = {0};
+
+	raw = malloc(BUF_SIZE+1);
+	if(raw == NULL) {
+		fprintf(stderr, "Error allocating memory\n");
+		return;
+	}
+
+	while( 1 ) {
+		printf(": ");
+		memset(raw, 0, BUF_SIZE); // Zero the buffer
+		fgets(raw, BUF_SIZE, stdin); // Read from standard input
+		res = parse_request(raw);
+		
+		// Exit cleanly
+		if(res == QUIT) {
+			free(raw);
+			return;
+		} else if(res == RESET) {
+			// Reset everything
+			roll_where = 0;
+			memset(rollback, 0, BF_ARRAY_SIZE);
+			continue;
+		}
+	
+		// Attempt to run the given brainfuck code segment
+		res = run_code(raw);
+		if(res < 0) { // If something goes awol
+			printf("Rolling back brainfuck memory...\n");
+			memcpy(&memory, rollback, BF_ARRAY_SIZE);
+			where = roll_where;
+			continue;
+		}
+		
+		// Save the current data, if something goes wrong next time we can roll back
+		roll_where = where;
+		memcpy(&rollback, memory, BF_ARRAY_SIZE);
+	} // End while
+
+	// Clean up
+	free(raw);
+}
+
+/*
+ * @return an error code, or 0 if everything runs fine
+ */
+int run_code(char *code) {
+	// Process raw input, get parse length
+	char *buf = NULL;
+	int len = parse(code, &buf);
+	if(len < 0) {
+		printf("Error: %s\n", get_error(len));
+		if(buf != NULL)
+			free(buf);
+		return len;
+	}
+
+	// Excecute the Brainfuck code
+	for(int i = 0; i < len; i++) {
+		i += do_op(buf[i], &buf[i+1]);
+
+		// Handle errors
+		if(where < 0) {
+			printf("Runtime error at operation %d; %c\n", i-1, buf[i]);
+			printf("  : %s\n", get_error(where));
+			free(buf);
+			return where;
+		}
+	} // End for
+	
+	printf("\n");
+	free(buf);
+	return 0;
+}

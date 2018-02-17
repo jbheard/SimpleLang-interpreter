@@ -44,5 +44,8 @@ int do_op(char, char*);
 void do_op_bfpp(char);
 int parse_request(char*);
 void disp(char*);
+void do_file(char*);
+void do_console();
+int run_code(char*);
 
 #endif // BRAINFUCK_H
