@@ -1,5 +1,7 @@
 brainfuck++ Compiler/Language Specifications
-By Jason Rush (AkSnowman) (updated by Jacob Torrey)
+By Jason Rush (AkSnowman) 
+Updated by Jacob Torrey
+Modified by Jacob Heard
 
 Syntax:
 Beyond the original brainfuck commands, the following new commands are introduced.
@@ -31,40 +33,35 @@ When no network connection is opened:
 	to original cell and original cell's value is replaced with 0x00 for 
 	success or 0xFF(-1) for failure. No other cells/values are modified.
 when a network connection is opened:
-	Closes network connection
+	Closes the open network connection
 
 ^
-Sends value of current cell via the open network connection/socket.
+Sends value of current cell through the open network connection/socket.
+If no network connection is open, does nothing.
 
 !
 Reads in 1 character/byte from network connection/socket.
-If connection is closed by remote host, 0x00 is returned instead.
+If connection is closed by remote host, 0x00 is returned and put into the current cell instead.
+If no connection is opened, does nothing.
 
 # implies only 1 file may be opened at any given time
 : implies use of files with 0x00's will cause false EOF conditions
 ; lack of any sort of erroring (read-only files and such)
 % implies only 1 network connection may be opened at any given time.
 TCP is assumed.
-^ implies use of 0x00's in transmissions will cause false EOT conditions
-! lack of any sort of erroring or non-blocking support
-presumably hangs or times out
+! is a blocking read, so the interpreter will wait until it recieves, or the connection is closed
 
 brainfuck++ is also backwards compatable with brainfuck as long as one has no
 brainfuck++ command characters in their brainfuck source
 (other options depend on brainfuck and brainfuck++ compiler/interpreter arguments)
 
 Compiler specific information:
-8-bit bytes
-1-byte cells
-cells wrap
-0xFF + 1 == 0x00
-and
-0x00 - 1 == 0xFF
-array is 30,000 cells in length
-loops on array "underflow/verflow" (moving left/down beyond 1st cell or up/right beyond last cell)
-pointer starts at first cell
-"read" commands (stdin, file, and network) take in newlines as recieved from the OS
-ie. may be just 10, just 13, or 13 10 (CRLF)
-0x00 shall be used for EOF's (and EOT)
+* 8-bit bytes
+* 1-byte cells
+* 0xFF + 1 == 0x00 and 0x00 - 1 == 0xFF
+* array is 32,768 cells in length (2^15)
+* pointer starts at first cell
+* read commands (stdin, file, and network) take in newlines as received from the OS
+	- ie. may be just 10, just 13, or 13 10 (CRLF)
 
 All compiler specific information/specifications may be modified by arguments passed to compiler
