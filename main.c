@@ -13,7 +13,7 @@
  *		,	Take a single byte of input
  * 		. 	Print a the byte at the data pointer
  * 
- * Brainfuck++ is an edition to the brainfuck language outlined by Jacob I. Torrey (https://esolangs.org/wiki/Brainfuck%2B%2B).
+ * Brainfuck++ is an addition to the brainfuck language outlined by Jacob I. Torrey (https://esolangs.org/wiki/Brainfuck%2B%2B).
  * It uses the same commands as above, with 6 added operations.
  *
  * The added operations in the brainfuck++ language are:
@@ -30,36 +30,65 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <getopt.h>
 
 #include "brainfuck.h"
 #include "brainfuckpp.h"
 
-/// TODO implement getopt_long
 
 int main(int argc, char *argv[]) {
-	char *fname = NULL;
-	int console = 0;
+	int c;
+	char fname[128] = {0};
+	static int oob = 1, console = 1;
 
-	if(argc > 1) {
-		if(strcmp(argv[1], "--help") == 0) { // If the user is begging for help
-			printf("Usage: %s <argument> <filename>\n", argv[0]);
-			printf("     --help   Shows this help page and exits.\n");
-			printf("     --bf++   Enables brainfuck++ commands.\n");
+	while( 1 ) {
+		static struct option long_options[] = {
+			{"bfpp", no_argument, &bfpp, 1},
+			{"bf++", no_argument, &bfpp, 1},
+			{"brainfuck++", no_argument, &bfpp, 1},
+			{"help", no_argument, 0, 'h'},
+			{"file", required_argument, 0, 'f'},
+			{"no-oob", no_argument, &oob, 0},
+			{0, 0, 0, 0}
+		};
+		/* getopt_long stores the option index here. */
+		int option_index = 0;
+
+		c = getopt_long (argc, argv, "hf:", long_options, &option_index);
+
+		/* Detect the end of the options. */
+		if(c == -1) break;
+
+		switch( c ) {
+		case 0: // Flag is set by getopt_long
+			break;
+
+		case 'h': // Help page
+			printf("Usage: %s [options]\n", argv[0]);
+			printf("     -h,--help   Shows this help page and exits\n");
+			printf("     --bf++      Enables brainfuck++ commands\n");
+			printf("     -f file     Runs the brainfuck(++) source code from the given file\n");
+			printf("     --no-oob    Disables out-of-bounds exceptions. This essentially makes\n");
+			printf("                 memory circular (0-1 rolls over to 32,767 and vice versa)\n");
+			return 0;
+			break;
+
+		case 'f':
+			strncpy(fname, optarg, 127);
+			console = 0;
+			break;
+			
+		case '?':
+			// getopt_long already prints an error message
+			break;
+
+		default:
+			fprintf(stderr, "An error occurred, exiting...\n");
 			return 1;
-		} else if(strcmp(argv[1], "--bf++") == 0 || strcmp(argv[1], "--brainfuck++") == 0) {
-			bfpp = 1; // Set brainfuck++ flag
-			if(argc > 2) { // Implies a filename was passed
-				fname = argv[2];
-			} else {
-				console = 1;
-			}
-		} else {
-			fname = argv[1];
+			break;
 		}
-	} else {
-		// Otherwise, run in interactive mode, accept brainfuck from the command line
-		console = 1;
 	}
+
 
 	if(console) {
 		do_console();
@@ -71,7 +100,7 @@ int main(int argc, char *argv[]) {
 	if(bfpp) {
 		cleanup();
 	}
-
+	
 	return 0;
 }
 
