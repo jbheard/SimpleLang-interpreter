@@ -39,7 +39,7 @@
 int main(int argc, char *argv[]) {
 	int c;
 	char fname[128] = {0};
-	static int oob = 1, console = 1;
+	static int console = 1;
 
 	while( 1 ) {
 		static struct option long_options[] = {

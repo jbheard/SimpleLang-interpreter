@@ -31,6 +31,7 @@
 extern int bfpp;
 extern int where;
 extern char memory[BF_ARRAY_SIZE];
+extern int oob;
 
 void cleanup();
 const char* get_error(int);
