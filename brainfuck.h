@@ -26,6 +26,7 @@
 #define WHERE_HELP      4
 #define DISP_HELP       5
 #define BFPP_HELP       6
+#define INCLUDE_HELP    7
 
 // variables defined elsewhere (mostly in brainfuck.c)
 extern int bfpp;
@@ -45,7 +46,7 @@ int do_op(char, char*);
 void do_op_bfpp(char);
 int parse_request(char*);
 void disp(char*);
-void do_file(char*);
+int do_file(char*);
 void do_console();
 int run_code(char*);
 

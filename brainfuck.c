@@ -75,12 +75,13 @@ void show_help(int help_id) {
 switch(help_id) {
 	case HELP_HELP:
 		printf("Available commands:\n");
-		printf("help - Show this help page, you can use help [command_name] to view help for \n");
-		printf("       that specific command. Use \"help brainfuck\" or \"help bf\" to see a\n");
-		printf("       language overview.\n");
-		printf("where - Show the current position of the cursor.\n");
-		printf("print - Print the memory at a given position as string.\n");
-		printf("disp - Display memory at a given position in various formats.\n\n");
+		printf("help    - Show this help page, you can use help [command_name] to view help for \n");
+		printf("          that specific command. Use \"help brainfuck\" or \"help bf\" to see a\n");
+		printf("          language overview.\n");
+		printf("where   - Show the current position of the cursor, with some basic info.\n");
+		printf("include - Run a brainfuck(++) source file from within the console.\n");
+		printf("print   - Print the memory at a given position as string.\n");
+		printf("disp    - Display memory at a given position in various formats.\n\n");
 		break;
 	case BRAINFUCK_HELP:
 		printf("-------------------------------------------------------------------------------\n");
@@ -137,6 +138,12 @@ switch(help_id) {
 		printf("              character, d for decimal number or x for \n");
 		printf("              hexadecimal number.\n");
 		printf("    howmany - How many bytes to show.\n\n");
+		break;
+	case INCLUDE_HELP:
+		printf("include - Include brainfuck source file.\n");
+		printf("Usage: include \"filename\"\n");
+		printf("       filename - The name of the brainfuck(++) source file to run.\n");
+		printf("                  Must be surrounded with quotes\n\n");
 		break;
 	}
 }
@@ -462,6 +469,8 @@ int parse_request(char *req) {
 			show_help(BRAINFUCK_HELP);
 		} else if(strstr(req, "brainfuck") != NULL) {
 			show_help(BRAINFUCK_HELP);
+		} else if(strstr(req, "include") != NULL) {
+			show_help(INCLUDE_HELP);
 		} else {
 			show_help(HELP_HELP);
 		}
@@ -485,6 +494,19 @@ int parse_request(char *req) {
 
 	} else if( strncmp(req, "disp", 4) == 0) {
 		disp(req);
+		return 0;
+	} else if( strncmp(req, "include", 7) == 0) {
+		char fname[128] = {0};
+		char *ptr = strstr(req, "\"");
+		if(ptr != NULL) {
+			++ptr;
+			for(int i = 0; *ptr != '\0' && *ptr != '\"'; i++, ptr++)
+				fname[i] = *ptr;
+			// Run the file
+			do_file(fname);
+		} else {
+			fprintf(stderr, "Error: a file must be provided (make sure to wrap with quotes\n");
+		}
 		return 0;
 	}
 
@@ -552,8 +574,9 @@ void disp(char *req) {
 }
 
 /* Opens, reads, and runs the brainfuck(++) code from a source code file
+ * @return An exit code, 1 for error, 0 for clean exit
  */
-void do_file(char *fname) {
+int do_file(char *fname) {
 	FILE *fp;
 	char *raw;
 	int bytesread;
@@ -562,14 +585,14 @@ void do_file(char *fname) {
 	// This one should probably never happen, but just in case
 	if(fname == NULL) {
 		fprintf(stderr, "Error opening file: could not resolve filename.\n");
-		exit(1);
+		return 1;
 	}
 
 	// Open the file for reading, check that it is, in fact, open
 	fp = fopen(fname, "rb");
 	if(fp == NULL) {
-		fprintf(stderr, "Error: file could not be opened.\n");
-		exit(1);
+		fprintf(stderr, "Error: file '%s' could not be opened.\n", fname);
+		return 1;
 	}
 
 	// Get the length of the file
@@ -582,7 +605,7 @@ void do_file(char *fname) {
 	if(raw == NULL) {
 		fprintf(stderr, "Error allocating memory.\n");
 		fclose(fp);
-		exit(1);
+		return 1;
 	}
 
 	// Read in the entire file
@@ -596,13 +619,14 @@ void do_file(char *fname) {
 	if(bytesread < filelen) {
 		fprintf(stderr, "Error reading file contents.\n");
 		free(raw);
-		exit(1);
+		return 1;
 	}
 
 	// Run the code
 	run_code(raw);
 	// Free the memory
 	free(raw);
+	return 0;
 }
 
 /* Starts a loop and reads input/runs commands and code from the command line

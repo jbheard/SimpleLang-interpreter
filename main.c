@@ -38,6 +38,7 @@
 
 int main(int argc, char *argv[]) {
 	int c;
+	int ret = 0;
 	char fname[128] = {0};
 	static int console = 1;
 
@@ -89,18 +90,17 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-
 	if(console) {
 		do_console();
 	} else {
-		do_file(fname);
+		ret = do_file(fname);
 	}
 
 	// Clean up loose ends if in bf++ mode
 	if(bfpp) {
 		cleanup();
 	}
-	
-	return 0;
+
+	return ret;
 }
 
