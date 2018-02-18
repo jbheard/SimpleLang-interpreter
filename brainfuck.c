@@ -8,6 +8,8 @@
 /*** EXTERNAL VARIABLES ***/
 // Brainfuck++ control variable (brainfuck mode vs brainfuck++)
 int bfpp = 0;
+// out-of-bounds error control variable, if set to 0, memory will act circular
+int oob = 1;
 // Position in array
 int where = 0;
 // Main memory array
@@ -324,8 +326,12 @@ int do_op(char op, char *next) {
 			if(bfpp) do_op_bfpp(op);
 			break;
 	}
-	if(where < 0 || where >= BF_ARRAY_SIZE) {
-		where = INDEX_OOB;
+	if(where < 0) {
+		if(oob) where = INDEX_OOB;
+		else where += BF_ARRAY_SIZE;
+	} else if(where >= BF_ARRAY_SIZE) {
+		if(oob) where = INDEX_OOB;
+		else where -= BF_ARRAY_SIZE;
 	}
 	return offset;
 }
@@ -545,8 +551,7 @@ void disp(char *req) {
 	printf("\n");
 }
 
-/*
- *
+/* Opens, reads, and runs the brainfuck(++) code from a source code file
  */
 void do_file(char *fname) {
 	FILE *fp;
@@ -600,8 +605,7 @@ void do_file(char *fname) {
 	free(raw);
 }
 
-/*
- *
+/* Starts a loop and reads input/runs commands and code from the command line
  */
 void do_console() {
 	int res;
@@ -651,7 +655,8 @@ void do_console() {
 	free(raw);
 }
 
-/*
+/* Runs a given raw code segment
+ * @param code the raw code to run
  * @return an error code, or 0 if everything runs fine
  */
 int run_code(char *code) {
@@ -682,3 +687,4 @@ int run_code(char *code) {
 	free(buf);
 	return 0;
 }
+
