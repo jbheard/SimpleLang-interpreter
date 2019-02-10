@@ -16,7 +16,7 @@
 	typedef struct sockaddr*    LPSOCKADDR;
 #endif
 
-#include "brainfuckpp.h"
+#include "SimpleLangpp.h"
 
 /* Opens a socket and connects to a given host on a given port
  * NOTE: Winsock code is from http://johnnie.jerrata.com/winsocktutorial/ and has 

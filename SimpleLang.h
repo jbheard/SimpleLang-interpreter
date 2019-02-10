@@ -1,5 +1,5 @@
-#ifndef BRAINFUCK_H
-#define BRAINFUCK_H	
+#ifndef SIMPLELANG_H
+#define SIMPLELANG_H	
 
 #include <stdio.h> // FILE
 
@@ -21,14 +21,14 @@
 
 // Help function codes
 #define HELP_HELP       1
-#define BRAINFUCK_HELP  2
+#define SIMPLELANG_HELP 2
 #define PRINT_HELP      3
 #define WHERE_HELP      4
 #define DISP_HELP       5
 #define BFPP_HELP       6
 #define INCLUDE_HELP    7
 
-// variables defined elsewhere (mostly in brainfuck.c)
+// variables defined elsewhere (mostly in SimpleLang.c)
 extern int bfpp;
 extern int where;
 extern char memory[BF_ARRAY_SIZE];
@@ -50,4 +50,4 @@ int do_file(char*);
 void do_console();
 int run_code(char*);
 
-#endif // BRAINFUCK_H
+#endif // SIMPLELANG_H

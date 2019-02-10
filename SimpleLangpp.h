@@ -1,7 +1,7 @@
-#ifndef BRAINFUCKPP_H
-#define BRAINFUCKPP_H	
+#ifndef SIMPLELANGPP_H
+#define SIMPLELANGPP_H	
 
-// Stupid windows with their stupid winsock, making me do extra work
+// Windows uses different variable names, so we need some aliases
 #ifdef __WIN32__
 	#include <winsock.h>
 #else
@@ -22,4 +22,4 @@ void send_sock(SOCKET, char);
 char recv_sock(SOCKET);
 
 
-#endif // BRAINFUCKPP_H
+#endif // SIMPLELANGPP_H

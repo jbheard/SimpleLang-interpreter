@@ -2,11 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "brainfuck.h"
-#include "brainfuckpp.h"
+#include "SimpleLang.h"
+#include "SimpleLangpp.h"
 
 /*** EXTERNAL VARIABLES ***/
-// Brainfuck++ control variable (brainfuck mode vs brainfuck++)
+// SimpleLang++ control variable (SimpleLang mode vs SimpleLang++)
 int bfpp = 0;
 // out-of-bounds error control variable, if set to 0, memory will act circular
 int oob = 1;
@@ -19,7 +19,7 @@ char memory[BF_ARRAY_SIZE] = {0};
 /*** INTERNAL VARIABLES ***/
 // File and socket control variables
 static char file_open = 0, sock_open = 0;
-// Internal file pointer for brainfuck
+// Internal file pointer for SimpleLang
 static FILE* bf_fp = NULL;
 // Client socket
 static SOCKET sock_c;
@@ -69,23 +69,23 @@ const char* get_error(int err) {
 }
 
 /* Shows a help page for a given command, or a general help page if no command is provided
- * @param help_id The id of the help page to show (e.g. HELP_HELP, BRAINFUCK_HELP)
+ * @param help_id The id of the help page to show (e.g. HELP_HELP, SIMPLELANG_HELP)
  */
 void show_help(int help_id) {
 switch(help_id) {
 	case HELP_HELP:
 		printf("Available commands:\n");
 		printf("help    - Show this help page, you can use help [command_name] to view help for \n");
-		printf("          that specific command. Use \"help brainfuck\" or \"help bf\" to see a\n");
+		printf("          that specific command. Use \"help SimpleLang\" or \"help bf\" to see a\n");
 		printf("          language overview.\n");
 		printf("where   - Show the current position of the cursor, with some basic info.\n");
-		printf("include - Run a brainfuck(++) source file from within the console.\n");
+		printf("include - Run a SimpleLang(++) source file from within the console.\n");
 		printf("print   - Print the memory at a given position as string.\n");
 		printf("disp    - Display memory at a given position in various formats.\n\n");
 		break;
-	case BRAINFUCK_HELP:
+	case SIMPLELANG_HELP:
 		printf("-------------------------------------------------------------------------------\n");
-		printf("                        Brainfuck++ Operations Guide\n");
+		printf("                        SimpleLang++ Operations Guide\n");
 		printf("-------------------------------------------------------------------------------\n");
 		printf("  Op | Explanation\n");
 		printf("-------------------------------------------------------------------------------\n");
@@ -97,11 +97,11 @@ switch(help_id) {
 		printf("   .   Writes the byte in the current cell to stdout.\n");
 		printf("   [   Loop if the current cell is non-zero, otherwise jump to the op after ']'\n");
 		printf("   ]   End of loop, jumps back to start.\n\n");
-		printf("Use \"help bf++\" to see brainfuck++ specific operations\n\n");
+		printf("Use \"help bf++\" to see SimpleLang++ specific operations\n\n");
 		break;
 	case BFPP_HELP:
 		printf("-------------------------------------------------------------------------------\n");
-		printf("                        Brainfuck++ Operations Guide\n");
+		printf("                        SimpleLang++ Operations Guide\n");
 		printf("-------------------------------------------------------------------------------\n");
 		printf("  Op | Explanation\n");
 		printf("-------------------------------------------------------------------------------\n");
@@ -116,7 +116,7 @@ switch(help_id) {
 		printf("       failure) is stored at the current cell.\n");
 		printf("   ^   Writes one byte from current cell to socket.\n");
 		printf("   !   Reads one byte from socket to current cell.\n\n");
-		printf("Use \"help bf\" to see general brainfuck operations\n\n");
+		printf("Use \"help bf\" to see general SimpleLang operations\n\n");
 		break;
 	case PRINT_HELP:
 		printf("print - Prints the text at pointer location, stops at a \n");
@@ -140,9 +140,9 @@ switch(help_id) {
 		printf("    howmany - How many bytes to show.\n\n");
 		break;
 	case INCLUDE_HELP:
-		printf("include - Include brainfuck source file.\n");
+		printf("include - Include SimpleLang source file.\n");
 		printf("Usage: include \"filename\"\n");
-		printf("       filename - The name of the brainfuck(++) source file to run.\n");
+		printf("       filename - The name of the SimpleLang(++) source file to run.\n");
 		printf("                  Must be surrounded with quotes\n\n");
 		break;
 	}
@@ -191,9 +191,9 @@ short peek(short *stack) {
 	return stack[len-1];
 }
 
-/* Parses Brainfuck code to be read by the interpreter.
+/* Parses SimpleLang code to be read by the interpreter.
  * Removes comments/invalid chars, establishes loops, 
- * @param bf The brainfuck code to parse
+ * @param bf The SimpleLang code to parse
  * @param arr Pointer to the location to store the modified 
  *				code (if NULL will be created using malloc)
  * @return The length of the newly parsed array
@@ -211,7 +211,7 @@ int parse(char *bf, char **arr) {
 				cnt += 1 + sizeof(short); // Loop ops require a memory address
 				break;
 			default:
-			// handle any brainfuck++ code, but only in bf++ mode
+			// handle any SimpleLang++ code, but only in bf++ mode
 				if(bfpp) {
 					switch(bf[i]) {
 						case '#': case '^': case '!':
@@ -272,7 +272,7 @@ int parse(char *bf, char **arr) {
 				*((short*)&ptr[tmp+1]) = cnt-tmp;
 				break;
 			default:
-			// handle any brainfuck++ code, but only in bf++ mode
+			// handle any SimpleLang++ code, but only in bf++ mode
 				if(bfpp) {
 					switch(bf[i]) {
 						case '#': case '^': case '!':
@@ -292,8 +292,8 @@ int parse(char *bf, char **arr) {
 	return cnt;
 }
 
-/* Perform a single brainfuck operation. 
- * Passes any brainfuck++ to do_op_bfpp().
+/* Perform a single SimpleLang operation. 
+ * Passes any SimpleLang++ to do_op_bfpp().
  * @param op The operation
  * @return The offset to apply to the code pointer
  */
@@ -329,7 +329,7 @@ int do_op(char op, char *next) {
 			offset = (int)*((short*)next)-1;
 			break;
 		default:
-			// Perform any brainfuck++ operations if in bf++ mode
+			// Perform any SimpleLang++ operations if in bf++ mode
 			if(bfpp) do_op_bfpp(op);
 			break;
 	}
@@ -343,7 +343,7 @@ int do_op(char op, char *next) {
 	return offset;
 }
 
-/* Perform a single brainfuck++ operation.
+/* Perform a single SimpleLang++ operation.
  * @param op The operation
  */
 void do_op_bfpp(char op) {
@@ -461,14 +461,14 @@ int parse_request(char *req) {
 			show_help(PRINT_HELP);
 		} else if(strstr(req, "disp") != NULL) {
 			show_help(DISP_HELP);
-		} else if(strstr(req, "brainfuck++") != NULL) {
-			show_help(BRAINFUCK_HELP);
+		} else if(strstr(req, "SimpleLang++") != NULL) {
+			show_help(SIMPLELANG_HELP);
 		} else if(strstr(req, "bf++") != NULL) {
 			show_help(BFPP_HELP);
 		} else if(strstr(req, "bf") != NULL) {
-			show_help(BRAINFUCK_HELP);
-		} else if(strstr(req, "brainfuck") != NULL) {
-			show_help(BRAINFUCK_HELP);
+			show_help(SIMPLELANG_HELP);
+		} else if(strstr(req, "SimpleLang") != NULL) {
+			show_help(SIMPLELANG_HELP);
 		} else if(strstr(req, "include") != NULL) {
 			show_help(INCLUDE_HELP);
 		} else {
@@ -573,7 +573,7 @@ void disp(char *req) {
 	printf("\n");
 }
 
-/* Opens, reads, and runs the brainfuck(++) code from a source code file
+/* Opens, reads, and runs the SimpleLang(++) code from a source code file
  * @return An exit code, 1 for error, 0 for clean exit
  */
 int do_file(char *fname) {
@@ -661,10 +661,10 @@ void do_console() {
 			continue;
 		}
 	
-		// Attempt to run the given brainfuck code segment
+		// Attempt to run the given SimpleLang code segment
 		res = run_code(raw);
 		if(res < 0) { // If something goes awol
-			printf("Rolling back brainfuck memory...\n");
+			printf("Rolling back SimpleLang memory...\n");
 			memcpy(&memory, rollback, BF_ARRAY_SIZE);
 			where = roll_where;
 			continue;
@@ -694,7 +694,7 @@ int run_code(char *code) {
 		return len;
 	}
 
-	// Excecute the Brainfuck code
+	// Excecute the SimpleLang code
 	for(int i = 0; i < len; i++) {
 		i += do_op(buf[i], &buf[i+1]);
 
