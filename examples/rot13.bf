@@ -1,4 +1,4 @@
-[ This is a ROT13 encryption written in brainfuck.
+[ This is a ROT13 encryption written in SimpleLang.
 Example from Wikipedia.
 ]
 
