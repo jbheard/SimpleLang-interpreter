@@ -1,10 +1,10 @@
-brainfuck++ Compiler/Language Specifications
-By Jason Rush (AkSnowman) 
+SimpleLang++ Compiler/Language Specifications
+Originally By Jason Rush (AkSnowman)
 Updated by Jacob Torrey
 Modified by Jacob Heard
 
 Syntax:
-Beyond the original brainfuck commands, the following new commands are introduced.
+Beyond the original SimpleLang commands, the following new commands are introduced.
 
 #
 when no file is opened:
@@ -51,9 +51,9 @@ If no connection is opened, does nothing.
 TCP is assumed.
 ! is a blocking read, so the interpreter will wait until it recieves, or the connection is closed
 
-brainfuck++ is also backwards compatable with brainfuck as long as one has no
-brainfuck++ command characters in their brainfuck source
-(other options depend on brainfuck and brainfuck++ compiler/interpreter arguments)
+SimpleLang++ is also backwards compatable with SimpleLang as long as one has no
+SimpleLang++ command characters in their SimpleLang source
+(other options depend on SimpleLang and SimpleLang++ compiler/interpreter arguments)
 
 Compiler specific information:
 * 8-bit bytes
