@@ -1,7 +1,7 @@
 # SimpleLang Interpreter
 
 This is a command line interpreter for a simple, Turing complete, programming language. It can run code from a file or from the command line (interactive mode).
-SimpleLang is actually a rebranding of a popular esoteric programming language called brain<expletive>. SimpleLang is just a change in name and nothing more, since I didn't want to plaster cuss words all over my online portfolio. Similarly, SimpleLang++ is a rebranding of a lesser known addition to the original language by Jacob L. Torrey. Both languages can be easily found on https://esolangs.org
+SimpleLang is actually a rebranding of a popular esoteric programming language called brain\<expletive>. SimpleLang is just a change in name and nothing more, since I didn't want to plaster cuss words all over my online portfolio. Similarly, SimpleLang++ is a rebranding of a lesser known addition to the original language by Jacob I. Torrey. Both languages can be easily found on https://esolangs.org
 SimpleLang is an esoteric programming language in which there are only 8 operations, these are as follows:
 
 Operation | Explanation
