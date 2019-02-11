@@ -4,16 +4,18 @@ This is a command line interpreter for a simple, Turing complete, programming la
 SimpleLang is actually a rebranding of a popular esoteric programming language called brain\<expletive>. SimpleLang is just a change in name and nothing more, since I didn't want to plaster cuss words all over my online portfolio. Similarly, SimpleLang++ is a rebranding of a lesser known addition to the original language by Jacob I. Torrey. Both languages can be easily found on https://esolangs.org
 SimpleLang is an esoteric programming language in which there are only 8 operations, these are as follows:
 
+
 Operation | Explanation
 :---: | :---
-  < | Decrements the data pointer  
-  > | Increments the data pointer  
-  - | Decrements the byte at the data pointer  
-  + | Increments the byte at the data pointer  
-  [ | Begins a loop, if byte at data pointer is 0, skip to the command after end of loop  
-  ] | Jump to beginning of loop  
-  , | Take a single byte of input  
-  . | Print a the byte at the data pointer  
+< | Decrements the data pointer  
+\> | Increments the data pointer  
+\- | Decrements the byte at the data pointer  
+\+ | Increments the byte at the data pointer  
+\[ | Begins a loop, if byte at data pointer is 0, skip to the command after end of loop  
+\] | Jump to beginning of loop  
+\, | Take a single byte of input  
+\. | Print a the byte at the data pointer  
+
 
 Anything that is not one of the above 8 operations is ignored, and can be used to comment.
 
